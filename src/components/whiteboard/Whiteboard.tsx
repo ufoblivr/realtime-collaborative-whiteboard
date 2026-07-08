@@ -169,11 +169,13 @@ export default function Whiteboard({ initialBoardId }: WhiteboardProps) {
     }
     const stored = getStoredUserName();
     if (stored) {
-      setUserName(stored);
+      const frameId = window.requestAnimationFrame(() => setUserName(stored));
+      return () => window.cancelAnimationFrame(frameId);
     } else {
       const fallback = createGuestName();
       window.localStorage.setItem('rtw-user-name', fallback);
-      setUserName(fallback);
+      const frameId = window.requestAnimationFrame(() => setUserName(fallback));
+      return () => window.cancelAnimationFrame(frameId);
     }
   }, []);
 
@@ -181,7 +183,10 @@ export default function Whiteboard({ initialBoardId }: WhiteboardProps) {
     if (typeof window === 'undefined') {
       return;
     }
-    setShareLink(`${window.location.origin}${window.location.pathname}?board=${boardId}`);
+    const frameId = window.requestAnimationFrame(() => {
+      setShareLink(`${window.location.origin}${window.location.pathname}?board=${boardId}`);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [boardId]);
 
   useEffect(() => {
