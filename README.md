@@ -333,13 +333,9 @@ The project exposes board routes through the App Router.
 
 ## Screenshots
 
-Add the following assets before publishing the repository publicly:
+![Project Screenshot](images/landing_page.png)
+![Demo](images/demo_video.gif)
 
-- `docs/screenshots/home.png` - landing page
-- `docs/screenshots/board.png` - active whiteboard session
-- `docs/screenshots/collaboration.gif` - two-user collaboration demo
-
-You can also embed animated GIFs or short screen recordings here for recruiters and contributors.
 
 ## Performance, Scalability, and Security
 
@@ -404,6 +400,4 @@ npm run build
 
 ## License
 
-No license file is currently included in the repository.
-
-If you plan to publish this publicly, add a `LICENSE` file first. MIT is a common choice for portfolio projects, but you should select the license that matches your goals.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
