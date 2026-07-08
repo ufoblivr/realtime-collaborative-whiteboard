@@ -141,7 +141,6 @@ export default function Home() {
     }
     
     // Guest mode - login screen with Try Demo option
-    const demoBoard = 'demo-board-' + Math.random().toString(36).slice(2, 9);
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-slate-100 px-4">
         <div className="max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-10 text-center shadow-2xl">
@@ -151,7 +150,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => {
-                setSelectedBoardId(demoBoard);
+                setSelectedBoardId(`demo-board-${Math.random().toString(36).slice(2, 9)}`);
               }}
               className="w-full inline-flex items-center justify-center rounded-full bg-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:bg-sky-400"
             >
