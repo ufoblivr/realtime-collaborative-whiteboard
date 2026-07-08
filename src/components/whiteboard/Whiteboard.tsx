@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Circle, Grid3X3, MousePointer2, Pencil, Redo2, RotateCw, Save, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut, Move, Copy, Maximize2, Minimize2, Menu } from 'lucide-react';
+import { ArrowRight, Circle, Grid3X3, MousePointer2, Pencil, Save, Square, Type, ZoomIn, ZoomOut, Move, Copy, Maximize2, Menu } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
-import { createTextShape, getResizeHandles, getRotationHandle, getShapeAtPoint, getShapeBounds, getShapeCenter, serializeBoard } from '@/lib/whiteboard/geometry';
+import { createTextShape, getResizeHandles, getRotationHandle, getShapeAtPoint, getShapeBounds, getShapeCenter } from '@/lib/whiteboard/geometry';
 import type { BoardShape, Operation, Point, Presence, Tool } from '@/lib/whiteboard/types';
 
 const TOOL_OPTIONS: Array<{ key: Tool; label: string; icon: React.ReactNode }> = [
@@ -28,31 +28,26 @@ const getBoardId = () => {
   return board ?? 'demo-board';
 };
 
-const getStoredBoard = () => {
+const getStoredBoard = (boardId: string) => {
   if (typeof window === 'undefined') {
     return null;
   }
   try {
-    const stored = window.localStorage.getItem('rtw-whiteboard');
+    const stored = window.localStorage.getItem(`rtw-whiteboard-${boardId}`);
     return stored ? JSON.parse(stored) : null;
   } catch {
     return null;
   }
 };
 
-const getUserName = () => {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem('rtw-user-name');
-    if (stored) {
-      return stored;
-    }
+const getStoredUserName = () => {
+  if (typeof window === 'undefined') {
+    return null;
   }
-  const fallback = `Guest-${Math.floor(Math.random() * 1000)}`;
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('rtw-user-name', fallback);
-  }
-  return fallback;
+  return window.localStorage.getItem('rtw-user-name');
 };
+
+const createGuestName = () => `Guest-${Math.floor(Math.random() * 1000)}`;
 
 const drawShape = (ctx: CanvasRenderingContext2D, shape: BoardShape, selected = false) => {
   ctx.save();
@@ -127,7 +122,11 @@ const drawShape = (ctx: CanvasRenderingContext2D, shape: BoardShape, selected = 
   ctx.restore();
 };
 
-export default function Whiteboard() {
+interface WhiteboardProps {
+  initialBoardId?: string;
+}
+
+export default function Whiteboard({ initialBoardId }: WhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -141,9 +140,9 @@ export default function Whiteboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [presence, setPresence] = useState<Presence[]>([]);
   const [cursors, setCursors] = useState<Record<string, Presence>>({});
-  const [boardId, setBoardId] = useState('demo-board');
-  const [shareLink, setShareLink] = useState('demo-board');
-  const [userName, setUserName] = useState(getUserName());
+  const [boardId, setBoardId] = useState(initialBoardId ?? 'demo-board');
+  const [userName, setUserName] = useState<string>('');
+  const [shareLink, setShareLink] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
@@ -156,13 +155,33 @@ export default function Whiteboard() {
   const [panOrigin, setPanOrigin] = useState<Point | null>(null);
 
   useEffect(() => {
-    setBoardId(getBoardId());
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const nextBoardId = initialBoardId ?? getBoardId();
+    const frameId = window.requestAnimationFrame(() => setBoardId(nextBoardId));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [initialBoardId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const stored = getStoredUserName();
+    if (stored) {
+      setUserName(stored);
+    } else {
+      const fallback = createGuestName();
+      window.localStorage.setItem('rtw-user-name', fallback);
+      setUserName(fallback);
+    }
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShareLink(`${window.location.origin}${window.location.pathname}?board=${boardId}`);
+    if (typeof window === 'undefined') {
+      return;
     }
+    setShareLink(`${window.location.origin}${window.location.pathname}?board=${boardId}`);
   }, [boardId]);
 
   useEffect(() => {
@@ -180,7 +199,7 @@ export default function Whiteboard() {
         setCopySuccess('Copied');
         setTimeout(() => setCopySuccess(null), 1500);
       }
-    } catch (e) {
+    } catch {
       setCopySuccess('Failed');
       setTimeout(() => setCopySuccess(null), 1500);
     }
@@ -195,7 +214,7 @@ export default function Whiteboard() {
         await document.exitFullscreen();
         setIsFullScreen(false);
       }
-    } catch (e) {
+    } catch {
       // ignore fullscreen errors
     }
   };
@@ -205,18 +224,25 @@ export default function Whiteboard() {
   }, [board]);
 
   useEffect(() => {
-    const stored = getStoredBoard();
-    if (stored) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const stored = getStoredBoard(boardId);
+    if (!stored) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
       setBoard(stored);
       boardRef.current = stored;
-    }
-  }, []);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [boardId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('rtw-whiteboard', JSON.stringify(board));
+      window.localStorage.setItem(`rtw-whiteboard-${boardId}`, JSON.stringify(board));
     }
-  }, [board]);
+  }, [board, boardId]);
 
   useEffect(() => {
     const socket = io({ path: '/socket.io' });
@@ -786,10 +812,12 @@ export default function Whiteboard() {
             </div>
             
           </div>
-          <div ref={containerRef} className="h-[75vh] overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
+          <div ref={containerRef} className="h-[80vh] w-full overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
             <canvas
               ref={canvasRef}
               className="h-full w-full touch-none"
+              aria-label="Drawing canvas"
+              data-testid="whiteboard-canvas"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
